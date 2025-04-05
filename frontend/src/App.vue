@@ -79,6 +79,8 @@ import { UploadFilled, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 
+const API_BASE_URL = '/api'  // 修改为相对路径
+
 export default {
   name: 'App',
   components: {

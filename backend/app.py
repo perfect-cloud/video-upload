@@ -6,8 +6,8 @@ import logging
 from datetime import datetime
 
 app = Flask(__name__)
-# 配置CORS，允许所有来源
-CORS(app, resources={r"/*": {"origins": "*"}})
+# 配置CORS，允许所有来源和请求方法
+CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
