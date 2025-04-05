@@ -6,7 +6,8 @@ import logging
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+# 配置CORS，允许所有来源
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -27,7 +28,7 @@ def allowed_file(filename):
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    logger.debug('开始处理文件上传请求...')
+    logger.debug('开始处理文件上传请求')
     logger.debug(f'请求文件: {request.files}')
     logger.debug(f'请求表单: {request.form}')
     
@@ -63,6 +64,7 @@ def upload_file():
 
 @app.route('/api/videos', methods=['GET'])
 def get_videos():
+    logger.debug('获取视频列表')
     try:
         videos = []
         for filename in os.listdir(UPLOAD_FOLDER):
@@ -74,6 +76,7 @@ def get_videos():
                     'uploadTime': datetime.fromtimestamp(file_stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
                     'size': file_stat.st_size
                 })
+        logger.debug(f'找到 {len(videos)} 个视频文件')
         return jsonify(videos)
     except Exception as e:
         logger.error(f'获取视频列表时出错: {str(e)}')
@@ -81,11 +84,14 @@ def get_videos():
 
 @app.route('/api/videos/<filename>', methods=['DELETE'])
 def delete_video(filename):
+    logger.debug(f'删除视频: {filename}')
     try:
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         if os.path.exists(file_path):
             os.remove(file_path)
+            logger.info(f'文件 {filename} 删除成功')
             return jsonify({'message': '文件删除成功'})
+        logger.error(f'文件 {filename} 不存在')
         return jsonify({'error': '文件不存在'}), 404
     except Exception as e:
         logger.error(f'删除文件时出错: {str(e)}')
@@ -93,7 +99,8 @@ def delete_video(filename):
 
 @app.route('/uploads/<filename>')
 def serve_video(filename):
+    logger.debug(f'提供视频文件: {filename}')
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000) 
+    app.run(debug=True, host='0.0.0.0', port=5000) 

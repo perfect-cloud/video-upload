@@ -5,7 +5,7 @@
         <el-upload
           class="upload-demo"
           drag
-          action="http://localhost:5000/api/upload"
+          action="/api/upload"
           :on-preview="handlePreview"
           :on-success="handleSuccess"
           :on-error="handleError"
@@ -32,7 +32,7 @@
               <template #default="scope">
                 <div class="video-thumbnail" @click="previewVideo(scope.row)">
                   <video
-                    :src="`http://localhost:5000/uploads/${scope.row.filename}`"
+                    :src="`/uploads/${scope.row.filename}`"
                     class="thumbnail-video"
                     preload="metadata"
                     @loadeddata="handleThumbnailLoaded($event, scope.row)"
@@ -64,7 +64,7 @@
           <video
             v-if="currentVideo"
             ref="videoPlayer"
-            :src="`http://localhost:5000/uploads/${currentVideo.filename}`"
+            :src="`/uploads/${currentVideo.filename}`"
             controls
             style="width: 100%"
           ></video>
@@ -98,7 +98,7 @@ export default {
   methods: {
     async fetchVideoList() {
       try {
-        const response = await axios.get('http://localhost:5000/api/videos')
+        const response = await axios.get('/api/videos')
         this.videoList = response.data
       } catch (error) {
         ElMessage.error('获取视频列表失败：' + error.message)
@@ -140,7 +140,7 @@ export default {
     },
     async deleteVideo(video) {
       try {
-        await axios.delete(`http://localhost:5000/api/videos/${video.filename}`)
+        await axios.delete(`/api/videos/${video.filename}`)
         ElMessage.success('删除成功')
         this.fetchVideoList() // 刷新视频列表
       } catch (error) {
