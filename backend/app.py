@@ -35,17 +35,47 @@ if os.name == 'nt':  # Windows 环境
     FFMPEG_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffmpeg.exe"
     FFPROBE_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffprobe.exe"
 else:  # Linux 环境
-    # 尝试使用系统路径中的 ffmpeg
-    FFMPEG_PATH = 'ffmpeg'
-    FFPROBE_PATH = 'ffprobe'
+    # 尝试多个可能的路径
+    possible_paths = [
+        '/usr/bin/ffmpeg',
+        '/usr/local/bin/ffmpeg',
+        '/opt/ffmpeg/bin/ffmpeg',
+        'ffmpeg'  # 系统 PATH 中的 ffmpeg
+    ]
     
-    # 如果 ffmpeg 不在系统路径中，可以尝试以下路径
-    # FFMPEG_PATH = '/usr/bin/ffmpeg'
-    # FFPROBE_PATH = '/usr/bin/ffprobe'
+    FFMPEG_PATH = None
+    for path in possible_paths:
+        try:
+            subprocess.run([path, '-version'], capture_output=True, check=True)
+            FFMPEG_PATH = path
+            break
+        except:
+            continue
     
-    # 或者使用自定义安装路径
-    # FFMPEG_PATH = '/usr/local/bin/ffmpeg'
-    # FFPROBE_PATH = '/usr/local/bin/ffprobe'
+    if FFMPEG_PATH is None:
+        logger.error("找不到 FFmpeg，请确保已安装 FFmpeg")
+        FFMPEG_PATH = 'ffmpeg'  # 使用默认值，但会记录错误
+    
+    # 同样处理 FFprobe
+    possible_paths = [
+        '/usr/bin/ffprobe',
+        '/usr/local/bin/ffprobe',
+        '/opt/ffmpeg/bin/ffprobe',
+        'ffprobe'  # 系统 PATH 中的 ffprobe
+    ]
+    
+    FFPROBE_PATH = None
+    for path in possible_paths:
+        try:
+            subprocess.run([path, '-version'], capture_output=True, check=True)
+            FFPROBE_PATH = path
+            break
+        except:
+            continue
+    
+    if FFPROBE_PATH is None:
+        logger.error("找不到 FFprobe，请确保已安装 FFmpeg")
+        FFPROBE_PATH = 'ffprobe'  # 使用默认值，但会记录错误
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -63,8 +93,25 @@ def allowed_file(filename):
 
 def get_video_info(file_path):
     try:
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            logger.error(f"文件不存在: {file_path}")
+            return None
+            
+        # 检查 FFprobe 是否可用
+        try:
+            subprocess.run([FFPROBE_PATH, '-version'], capture_output=True, check=True)
+        except Exception as e:
+            logger.error(f"FFprobe 不可用: {str(e)}")
+            return None
+            
         cmd = [FFPROBE_PATH, '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', file_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            logger.error(f"FFprobe 命令失败: {result.stderr}")
+            return None
+            
         data = json.loads(result.stdout)
         
         video_stream = next(s for s in data['streams'] if s['codec_type'] == 'video')
@@ -74,7 +121,7 @@ def get_video_info(file_path):
             'duration': float(data['format']['duration'])
         }
     except Exception as e:
-        print(f"Error getting video info: {e}")
+        logger.error(f"获取视频信息时出错: {str(e)}", exc_info=True)
         return None
 
 def transcode_video(input_path, output_path, quality):
