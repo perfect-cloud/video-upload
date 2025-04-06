@@ -5,10 +5,8 @@
         <el-upload
           class="upload-demo"
           drag
-          action="/api/upload"
+          :http-request="handleUpload"
           :on-preview="handlePreview"
-          :on-success="handleSuccess"
-          :on-error="handleError"
           :before-upload="beforeUpload"
           accept=".mp4,.avi,.mov,.wmv"
           name="video"
@@ -103,15 +101,29 @@ const fetchVideoList = async () => {
   }
 }
 
-// 上传成功处理
-const handleSuccess = (response) => {
-  ElMessage.success(`上传成功！文件名：${response.filename}`)
-  fetchVideoList() // 刷新视频列表
-}
-
-// 上传失败处理
-const handleError = (err) => {
-  ElMessage.error('上传失败：' + (err.message || '未知错误'))
+// 处理文件上传
+const handleUpload = async (options) => {
+  try {
+    const formData = new FormData()
+    formData.append('video', options.file)
+    
+    const response = await api.post('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        options.onProgress({ percent: percentCompleted })
+      }
+    })
+    
+    options.onSuccess(response.data)
+    ElMessage.success(`上传成功！文件名：${response.data.filename}`)
+    fetchVideoList() // 刷新视频列表
+  } catch (error) {
+    options.onError(error)
+    ElMessage.error('上传失败：' + (error.message || '未知错误'))
+  }
 }
 
 // 上传前处理
