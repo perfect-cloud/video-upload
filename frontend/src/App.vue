@@ -81,7 +81,7 @@ import axios from 'axios'
 import { ref, onMounted } from 'vue'
 
 // 根据环境设置 API 基础 URL
-const API_BASE_URL = import.meta.env.PROD ? '' : '/api'
+const API_BASE_URL = '/api'
 
 export default {
   name: 'App',
