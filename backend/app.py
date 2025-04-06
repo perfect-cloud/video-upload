@@ -13,11 +13,20 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 # 配置日志
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.log')),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # 配置上传文件夹
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+# 使用绝对路径，确保在任何环境下都能找到
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'wmv'}
 
 # FFmpeg 路径配置
@@ -40,6 +49,8 @@ else:  # Linux 环境
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+print(f"当前工作目录: {os.getcwd()}")
+print(f"应用目录: {BASE_DIR}")
 print(f"上传文件夹路径: {UPLOAD_FOLDER}")
 print(f"FFmpeg 路径: {FFMPEG_PATH}")
 print(f"FFprobe 路径: {FFPROBE_PATH}")
@@ -221,6 +232,39 @@ def serve_video(filename):
         folder_name, file_name = parts
         return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], folder_name), file_name)
     return jsonify({'error': '无效的文件路径'}), 400
+
+# 全局错误处理
+@app.errorhandler(Exception)
+def handle_error(error):
+    logger.error(f"发生错误: {str(error)}", exc_info=True)
+    return jsonify({'error': '服务器内部错误'}), 500
+
+# 定期检查服务状态的路由
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    try:
+        # 检查上传文件夹是否存在
+        if not os.path.exists(UPLOAD_FOLDER):
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            logger.info(f"创建上传文件夹: {UPLOAD_FOLDER}")
+        
+        # 检查 FFmpeg 是否可用
+        try:
+            subprocess.run([FFMPEG_PATH, '-version'], capture_output=True, check=True)
+            ffmpeg_status = "可用"
+        except Exception as e:
+            logger.error(f"FFmpeg 检查失败: {str(e)}")
+            ffmpeg_status = "不可用"
+        
+        return jsonify({
+            'status': 'ok',
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'upload_folder': UPLOAD_FOLDER,
+            'ffmpeg_status': ffmpeg_status
+        })
+    except Exception as e:
+        logger.error(f"健康检查失败: {str(e)}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 
