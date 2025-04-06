@@ -188,7 +188,7 @@ def transcode_video(input_path, output_path, quality):
         
         cmd = [
             FFMPEG_PATH, '-i', input_path,
-            '-c:v', 'libx264', '-crf', '23',
+            '-c:v', 'h264',  # 使用 h264 而不是 libx264
             '-preset', 'medium',
             '-c:a', 'aac', '-b:a', '128k',
             '-vf', f'scale={scale}',
