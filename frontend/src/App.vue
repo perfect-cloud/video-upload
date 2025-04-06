@@ -30,7 +30,7 @@
               <template #default="scope">
                 <div class="video-thumbnail" @click="previewVideo(scope.row)">
                   <video
-                    :src="`/uploads/${scope.row.filename}`"
+                    :src="getVideoUrl(scope.row.filename)"
                     class="thumbnail-video"
                     preload="metadata"
                     @loadeddata="handleThumbnailLoaded($event, scope.row)"
@@ -62,7 +62,7 @@
           <video
             v-if="currentVideo"
             ref="videoPlayer"
-            :src="`/uploads/${currentVideo.filename}`"
+            :src="getVideoUrl(currentVideo.filename)"
             controls
             style="width: 100%"
           ></video>
@@ -172,6 +172,14 @@ const deleteVideo = async (video) => {
   } catch (error) {
     ElMessage.error('删除失败：' + error.message)
   }
+}
+
+// 获取视频URL
+const getVideoUrl = (filename) => {
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'http://43.156.12.152:5000' 
+    : 'http://localhost:5000'
+  return `${baseUrl}/uploads/${filename}`
 }
 
 // 组件挂载时获取视频列表
