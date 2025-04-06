@@ -17,7 +17,9 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # 配置上传文件夹
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+# 使用绝对路径，确保在任何环境下都能找到
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'wmv'}
 
 # FFmpeg 路径配置
@@ -40,6 +42,8 @@ else:  # Linux 环境
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+print(f"当前工作目录: {os.getcwd()}")
+print(f"应用目录: {BASE_DIR}")
 print(f"上传文件夹路径: {UPLOAD_FOLDER}")
 print(f"FFmpeg 路径: {FFMPEG_PATH}")
 print(f"FFprobe 路径: {FFPROBE_PATH}")
