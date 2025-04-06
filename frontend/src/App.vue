@@ -81,7 +81,7 @@ import axios from 'axios'
 import { UploadFilled, VideoPlay } from '@element-plus/icons-vue'
 
 // 根据环境设置 API 基础 URL
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'http://43.156.12.152/api' : '/api'
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'http://43.156.12.152:5000/api' : '/api'
 
 // 创建 axios 实例
 const api = axios.create({
