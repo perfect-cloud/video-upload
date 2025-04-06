@@ -31,6 +31,7 @@ ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'wmv'}
 
 # FFmpeg 路径配置
 # 根据环境选择不同的路径
+ffmpeg_installed = False
 if os.name == 'nt':  # Windows 环境
     FFMPEG_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffmpeg.exe"
     FFPROBE_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffprobe.exe"
@@ -51,6 +52,7 @@ else:  # Linux 环境
             if result.returncode == 0:
                 FFMPEG_PATH = path
                 logger.info(f"找到可用的 FFmpeg: {path}")
+                ffmpeg_installed = True
                 break
             else:
                 logger.warning(f"FFmpeg 路径 {path} 返回非零状态码: {result.returncode}")
@@ -144,6 +146,16 @@ def get_video_info(file_path):
 
 def transcode_video(input_path, output_path, quality):
     try:
+        # 检查输入文件是否存在
+        if not os.path.exists(input_path):
+            logger.error(f"输入文件不存在: {input_path}")
+            return False
+            
+        # 检查 FFmpeg 是否可用
+        if not ffmpeg_installed:
+            logger.error("FFmpeg 未安装，无法进行转码")
+            return False
+            
         # 根据质量设置转码参数
         if quality == 'high':
             scale = '1920:1080'
@@ -155,19 +167,59 @@ def transcode_video(input_path, output_path, quality):
             scale = '854:480'
             bitrate = '1000k'
 
+        # 确保输出目录存在
+        output_dir = os.path.dirname(output_path)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 检查文件权限
+        try:
+            # 检查输入文件权限
+            if not os.access(input_path, os.R_OK):
+                logger.error(f"无法读取输入文件: {input_path}")
+                return False
+                
+            # 检查输出目录权限
+            if not os.access(output_dir, os.W_OK):
+                logger.error(f"无法写入输出目录: {output_dir}")
+                return False
+        except Exception as e:
+            logger.error(f"检查文件权限时出错: {str(e)}")
+            return False
+        
         cmd = [
             FFMPEG_PATH, '-i', input_path,
+            '-c:v', 'libx264', '-crf', '23',
+            '-preset', 'medium',
+            '-c:a', 'aac', '-b:a', '128k',
             '-vf', f'scale={scale}',
-            '-b:v', bitrate,
-            '-b:a', '128k',
             '-y',  # 覆盖已存在的文件
             output_path
         ]
         
-        subprocess.run(cmd, check=True)
+        logger.info(f"开始转码视频: {input_path} -> {output_path}")
+        logger.info(f"转码命令: {' '.join(cmd)}")
+        
+        # 执行转码命令并捕获输出
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            logger.error(f"转码失败，返回码: {result.returncode}")
+            logger.error(f"FFmpeg 错误输出: {result.stderr}")
+            
+            # 检查输入文件信息
+            try:
+                input_info = subprocess.run([FFPROBE_PATH, '-v', 'error', '-show_format', '-show_streams', input_path], 
+                                         capture_output=True, text=True)
+                logger.info(f"输入文件信息: {input_info.stdout}")
+            except Exception as e:
+                logger.error(f"获取输入文件信息失败: {str(e)}")
+            
+            return False
+            
+        logger.info(f"转码成功: {output_path}")
         return True
     except Exception as e:
-        print(f"Error transcoding video: {e}")
+        logger.error(f"转码过程中发生错误: {str(e)}", exc_info=True)
         return False
 
 @app.route('/api/upload', methods=['POST'])
@@ -180,71 +232,69 @@ def upload_video():
         return jsonify({'error': '没有选择文件'}), 400
     
     if file and allowed_file(file.filename):
-        # 生成安全的文件名
-        filename = secure_filename(file.filename)
-        base_name = os.path.splitext(filename)[0]
-        ext = os.path.splitext(filename)[1]
-        
-        # 创建唯一的文件夹名
-        timestamp = int(time.time())
-        folder_name = f"{base_name}_{timestamp}"
-        video_folder = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
-        os.makedirs(video_folder, exist_ok=True)
-        
-        # 保存原始文件
-        original_path = os.path.join(video_folder, f'original{ext}')  # 保持原始扩展名格式
-        file.save(original_path)
-        
-        # 获取视频信息
-        video_info = get_video_info(original_path)
-        if not video_info:
-            return jsonify({'error': '无法获取视频信息'}), 500
-        
-        # 转码不同质量的视频
         try:
-            # 高清版本 (1080p)
-            high_path = os.path.join(video_folder, f'high{ext}')  # 保持原始扩展名格式
-            subprocess.run([
-                FFMPEG_PATH, '-i', original_path,
-                '-c:v', 'libx264', '-crf', '23',
-                '-preset', 'medium',
-                '-c:a', 'aac', '-b:a', '128k',
-                '-vf', 'scale=1920:1080',
-                high_path
-            ], check=True)
+            # 生成安全的文件名
+            filename = secure_filename(file.filename)
+            base_name = os.path.splitext(filename)[0]
+            ext = os.path.splitext(filename)[1]
             
-            # 标清版本 (720p)
-            medium_path = os.path.join(video_folder, f'medium{ext}')  # 保持原始扩展名格式
-            subprocess.run([
-                FFMPEG_PATH, '-i', original_path,
-                '-c:v', 'libx264', '-crf', '23',
-                '-preset', 'medium',
-                '-c:a', 'aac', '-b:a', '128k',
-                '-vf', 'scale=1280:720',
-                medium_path
-            ], check=True)
+            # 创建唯一的文件夹名
+            timestamp = int(time.time())
+            folder_name = f"{base_name}_{timestamp}"
+            video_folder = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
+            os.makedirs(video_folder, exist_ok=True)
             
-            # 流畅版本 (480p)
-            low_path = os.path.join(video_folder, f'low{ext}')  # 保持原始扩展名格式
-            subprocess.run([
-                FFMPEG_PATH, '-i', original_path,
-                '-c:v', 'libx264', '-crf', '23',
-                '-preset', 'medium',
-                '-c:a', 'aac', '-b:a', '128k',
-                '-vf', 'scale=854:480',
-                low_path
-            ], check=True)
+            # 保存原始文件
+            original_path = os.path.join(video_folder, f'original{ext}')
+            logger.info(f"保存原始文件: {original_path}")
+            file.save(original_path)
             
-        except subprocess.CalledProcessError as e:
-            print(f"转码错误: {str(e)}")
-            # 如果转码失败，至少保留原始文件
-            pass
-        
-        return jsonify({
-            'message': '文件上传成功',
-            'filename': folder_name,
-            'info': video_info
-        })
+            # 检查文件权限
+            try:
+                if not os.access(original_path, os.R_OK):
+                    logger.error(f"无法读取上传的文件: {original_path}")
+                    return jsonify({'error': '文件权限错误'}), 500
+            except Exception as e:
+                logger.error(f"检查文件权限时出错: {str(e)}")
+                return jsonify({'error': '文件权限错误'}), 500
+            
+            # 获取视频信息
+            video_info = get_video_info(original_path)
+            if not video_info:
+                logger.error("无法获取视频信息")
+                return jsonify({'error': '无法获取视频信息'}), 500
+            
+            # 转码不同质量的视频
+            try:
+                # 高清版本 (1080p)
+                high_path = os.path.join(video_folder, f'high{ext}')
+                if not transcode_video(original_path, high_path, 'high'):
+                    logger.error("高清版本转码失败")
+                
+                # 标清版本 (720p)
+                medium_path = os.path.join(video_folder, f'medium{ext}')
+                if not transcode_video(original_path, medium_path, 'medium'):
+                    logger.error("标清版本转码失败")
+                
+                # 流畅版本 (480p)
+                low_path = os.path.join(video_folder, f'low{ext}')
+                if not transcode_video(original_path, low_path, 'low'):
+                    logger.error("流畅版本转码失败")
+                
+            except Exception as e:
+                logger.error(f"转码过程中发生错误: {str(e)}", exc_info=True)
+                # 如果转码失败，至少保留原始文件
+                pass
+            
+            return jsonify({
+                'message': '文件上传成功',
+                'filename': folder_name,
+                'info': video_info
+            })
+            
+        except Exception as e:
+            logger.error(f"上传过程中发生错误: {str(e)}", exc_info=True)
+            return jsonify({'error': f'上传失败: {str(e)}'}), 500
     
     return jsonify({'error': '不支持的文件类型'}), 400
 
