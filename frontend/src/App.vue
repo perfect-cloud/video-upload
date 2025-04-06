@@ -81,7 +81,12 @@ import axios from 'axios'
 import { ref, onMounted } from 'vue'
 
 // 根据环境设置 API 基础 URL
-const API_BASE_URL = '/api'
+const API_BASE_URL = import.meta.env.PROD ? 'http://43.156.12.152/api' : '/api'
+
+// 创建 axios 实例
+const api = axios.create({
+  baseURL: API_BASE_URL
+})
 
 export default {
   name: 'App',
@@ -102,7 +107,7 @@ export default {
   methods: {
     async fetchVideoList() {
       try {
-        const response = await axios.get('/api/videos')
+        const response = await api.get('/videos')
         this.videoList = response.data
       } catch (error) {
         ElMessage.error('获取视频列表失败：' + error.message)
@@ -144,7 +149,7 @@ export default {
     },
     async deleteVideo(video) {
       try {
-        await axios.delete(`/api/videos/${video.filename}`)
+        await api.delete(`/videos/${video.filename}`)
         ElMessage.success('删除成功')
         this.fetchVideoList() // 刷新视频列表
       } catch (error) {
