@@ -46,10 +46,16 @@ else:  # Linux 环境
     FFMPEG_PATH = None
     for path in possible_paths:
         try:
-            subprocess.run([path, '-version'], capture_output=True, check=True)
-            FFMPEG_PATH = path
-            break
-        except:
+            logger.info(f"尝试 FFmpeg 路径: {path}")
+            result = subprocess.run([path, '-version'], capture_output=True, text=True)
+            if result.returncode == 0:
+                FFMPEG_PATH = path
+                logger.info(f"找到可用的 FFmpeg: {path}")
+                break
+            else:
+                logger.warning(f"FFmpeg 路径 {path} 返回非零状态码: {result.returncode}")
+        except Exception as e:
+            logger.warning(f"检查 FFmpeg 路径 {path} 时出错: {str(e)}")
             continue
     
     if FFMPEG_PATH is None:
@@ -67,10 +73,16 @@ else:  # Linux 环境
     FFPROBE_PATH = None
     for path in possible_paths:
         try:
-            subprocess.run([path, '-version'], capture_output=True, check=True)
-            FFPROBE_PATH = path
-            break
-        except:
+            logger.info(f"尝试 FFprobe 路径: {path}")
+            result = subprocess.run([path, '-version'], capture_output=True, text=True)
+            if result.returncode == 0:
+                FFPROBE_PATH = path
+                logger.info(f"找到可用的 FFprobe: {path}")
+                break
+            else:
+                logger.warning(f"FFprobe 路径 {path} 返回非零状态码: {result.returncode}")
+        except Exception as e:
+            logger.warning(f"检查 FFprobe 路径 {path} 时出错: {str(e)}")
             continue
     
     if FFPROBE_PATH is None:
@@ -79,11 +91,11 @@ else:  # Linux 环境
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-print(f"当前工作目录: {os.getcwd()}")
-print(f"应用目录: {BASE_DIR}")
-print(f"上传文件夹路径: {UPLOAD_FOLDER}")
-print(f"FFmpeg 路径: {FFMPEG_PATH}")
-print(f"FFprobe 路径: {FFPROBE_PATH}")
+logger.info(f"当前工作目录: {os.getcwd()}")
+logger.info(f"应用目录: {BASE_DIR}")
+logger.info(f"上传文件夹路径: {UPLOAD_FOLDER}")
+logger.info(f"FFmpeg 路径: {FFMPEG_PATH}")
+logger.info(f"FFprobe 路径: {FFPROBE_PATH}")
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
@@ -100,12 +112,18 @@ def get_video_info(file_path):
             
         # 检查 FFprobe 是否可用
         try:
-            subprocess.run([FFPROBE_PATH, '-version'], capture_output=True, check=True)
+            logger.info(f"检查 FFprobe 可用性: {FFPROBE_PATH}")
+            result = subprocess.run([FFPROBE_PATH, '-version'], capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error(f"FFprobe 命令返回非零状态码: {result.returncode}")
+                logger.error(f"FFprobe 错误输出: {result.stderr}")
+                return None
         except Exception as e:
             logger.error(f"FFprobe 不可用: {str(e)}")
             return None
             
         cmd = [FFPROBE_PATH, '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', file_path]
+        logger.info(f"执行 FFprobe 命令: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
