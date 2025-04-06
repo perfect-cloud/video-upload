@@ -21,12 +21,28 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'upload
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'wmv'}
 
 # FFmpeg 路径配置
-FFMPEG_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffmpeg.exe"  # 请根据实际安装路径修改
-FFPROBE_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffprobe.exe"  # 请根据实际安装路径修改
+# 根据环境选择不同的路径
+if os.name == 'nt':  # Windows 环境
+    FFMPEG_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffmpeg.exe"
+    FFPROBE_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffprobe.exe"
+else:  # Linux 环境
+    # 尝试使用系统路径中的 ffmpeg
+    FFMPEG_PATH = 'ffmpeg'
+    FFPROBE_PATH = 'ffprobe'
+    
+    # 如果 ffmpeg 不在系统路径中，可以尝试以下路径
+    # FFMPEG_PATH = '/usr/bin/ffmpeg'
+    # FFPROBE_PATH = '/usr/bin/ffprobe'
+    
+    # 或者使用自定义安装路径
+    # FFMPEG_PATH = '/usr/local/bin/ffmpeg'
+    # FFPROBE_PATH = '/usr/local/bin/ffprobe'
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 print(f"上传文件夹路径: {UPLOAD_FOLDER}")
+print(f"FFmpeg 路径: {FFMPEG_PATH}")
+print(f"FFprobe 路径: {FFPROBE_PATH}")
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
