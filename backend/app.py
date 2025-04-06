@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # 配置上传文件夹
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'wmv'}
 
 # FFmpeg 路径配置
@@ -26,6 +26,7 @@ FFPROBE_PATH = r"D:\ffmpeg-2025-03-27-git-114fccc4a5-essentials_build\bin\ffprob
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+print(f"上传文件夹路径: {UPLOAD_FOLDER}")
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
@@ -99,7 +100,7 @@ def upload_video():
         os.makedirs(video_folder, exist_ok=True)
         
         # 保存原始文件
-        original_path = os.path.join(video_folder, f'original{ext}')
+        original_path = os.path.join(video_folder, f'original{ext}')  # 保持原始扩展名格式
         file.save(original_path)
         
         # 获取视频信息
@@ -110,7 +111,7 @@ def upload_video():
         # 转码不同质量的视频
         try:
             # 高清版本 (1080p)
-            high_path = os.path.join(video_folder, f'high{ext}')
+            high_path = os.path.join(video_folder, f'high{ext}')  # 保持原始扩展名格式
             subprocess.run([
                 FFMPEG_PATH, '-i', original_path,
                 '-c:v', 'libx264', '-crf', '23',
@@ -121,7 +122,7 @@ def upload_video():
             ], check=True)
             
             # 标清版本 (720p)
-            medium_path = os.path.join(video_folder, f'medium{ext}')
+            medium_path = os.path.join(video_folder, f'medium{ext}')  # 保持原始扩展名格式
             subprocess.run([
                 FFMPEG_PATH, '-i', original_path,
                 '-c:v', 'libx264', '-crf', '23',
@@ -132,7 +133,7 @@ def upload_video():
             ], check=True)
             
             # 流畅版本 (480p)
-            low_path = os.path.join(video_folder, f'low{ext}')
+            low_path = os.path.join(video_folder, f'low{ext}')  # 保持原始扩展名格式
             subprocess.run([
                 FFMPEG_PATH, '-i', original_path,
                 '-c:v', 'libx264', '-crf', '23',
@@ -158,19 +159,26 @@ def upload_video():
 @app.route('/api/videos', methods=['GET'])
 def get_videos():
     videos = []
+    print("开始获取视频列表...")
     # 遍历上传文件夹中的所有文件夹
     for folder_name in os.listdir(app.config['UPLOAD_FOLDER']):
         folder_path = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
+        print(f"检查文件夹: {folder_path}")
         if os.path.isdir(folder_path):
-            # 检查文件夹中是否存在原始视频文件
-            original_path = os.path.join(folder_path, f'original{os.path.splitext(folder_name)[1]}')
-            if os.path.exists(original_path):
-                video_info = get_video_info(original_path)
-                if video_info:
-                    videos.append({
-                        'filename': folder_name,
-                        'uploadTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(original_path)))
-                    })
+            # 直接检查文件夹中的文件
+            for file_name in os.listdir(folder_path):
+                if file_name.startswith('original'):
+                    original_path = os.path.join(folder_path, file_name)
+                    print(f"找到原始视频文件: {original_path}")
+                    video_info = get_video_info(original_path)
+                    if video_info:
+                        print(f"获取到视频信息: {video_info}")
+                        videos.append({
+                            'filename': folder_name,
+                            'uploadTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(original_path)))
+                        })
+                    break  # 找到原始文件后就跳出循环
+    print(f"找到 {len(videos)} 个视频")
     return jsonify(videos)
 
 @app.route('/api/videos/<filename>', methods=['DELETE'])

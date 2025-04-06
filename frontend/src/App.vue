@@ -249,23 +249,14 @@ const getVideoUrl = (filename, quality = 'original') => {
   
   if (!filename) return ''
   
-  // 从文件名中提取基础名称和扩展名
-  const lastDotIndex = filename.lastIndexOf('.')
-  const base_name = filename.substring(0, lastDotIndex)
-  const ext = filename.substring(lastDotIndex)
-  
-  // 检查是否已经包含质量后缀
-  const hasQualitySuffix = base_name.endsWith('_high') || base_name.endsWith('_medium') || base_name.endsWith('_low')
-  const cleanBaseName = hasQualitySuffix ? base_name.substring(0, base_name.lastIndexOf('_')) : base_name
-  
-  // 创建视频文件夹路径
-  const videoFolder = `${cleanBaseName}`
+  // 从文件名中提取扩展名
+  const ext = '.mp4'  // 默认使用 mp4 扩展名
   
   if (quality === 'original') {
-    return `${baseUrl}/uploads/${videoFolder}/original${ext}`
+    return `${baseUrl}/uploads/${filename}/original${ext}`
   }
   
-  return `${baseUrl}/uploads/${videoFolder}/${quality}${ext}`
+  return `${baseUrl}/uploads/${filename}/${quality}${ext}`
 }
 
 // 视频加载完成
